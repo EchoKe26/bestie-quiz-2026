@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>2026年度闺蜜默契大测试</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="闺蜜测试">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f5576c">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -15,6 +22,34 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* ====== 引导添加主屏幕页 ====== */
+#guideScreen {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  z-index: 99999; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; color: white; padding: 30px;
+}
+#guideScreen.active { display: flex; }
+.guide-card {
+  background: white; border-radius: 20px; padding: 30px 25px; width: 90%; max-width: 360px;
+  color: #333; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.guide-card h2 { font-size: 20px; margin-bottom: 15px; }
+.guide-step {
+  text-align: left; font-size: 14px; line-height: 2; margin-bottom: 15px; color: #555;
+}
+.guide-step b { color: #f5576c; }
+.guide-note {
+  font-size: 12px; color: #999; margin-top: 10px; line-height: 1.6;
+}
+.guide-icon { font-size: 50px; margin-bottom: 15px; }
+.guide-arrow {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  font-size: 30px; animation: bounceDown 1s infinite;
+}
+.guide-arrow.ios { bottom: 15px; }
+.guide-arrow.android { top: 15px; bottom: auto; }
 
 .stage { display: none; width: 100vw; min-height: 100vh; position: absolute; top: 0; left: 0; }
 .stage.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -152,7 +187,6 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 全屏退出拦截遮罩 */
 #fullscreenOverlay {
   display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.95); z-index: 9999;
@@ -199,14 +233,32 @@ body {
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 .shaking { animation: shakeIt 0.5s; }
+@keyframes bounceDown {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(10px); }
+}
 </style>
 </head>
 <body>
 
+<!-- 引导页: 非独立模式时显示 -->
+<div id="guideScreen">
+  <div class="guide-card">
+    <div class="guide-icon">&#x1F4F2;</div>
+    <h2>&#x26A0;&#xFE0F; 先完成这一步才能测试</h2>
+    <div class="guide-step" id="guideSteps"></div>
+    <div class="guide-note">
+      &#x1F512; 为了保证测试的「沉浸式体验」<br>
+      必须先添加到主屏幕再打开哦~<br>
+      这是国际友谊鉴定中心的规定!
+    </div>
+  </div>
+  <div class="guide-arrow" id="guideArrow">&#x2B07;&#xFE0F;</div>
+</div>
+
 <div class="fake-close" id="fakeClose" onclick="fakeCloseClick()">&#x2715;</div>
 <div class="shake-overlay" id="shakeOverlay"></div>
 
-<!-- 全屏退出拦截 -->
 <div id="fullscreenOverlay">
   <div style="font-size:60px;margin-bottom:20px;">&#x1F6AB;</div>
   <div style="font-size:20px;font-weight:bold;margin-bottom:10px;">测试还没做完呢!</div>
@@ -214,7 +266,6 @@ body {
   <button onclick="goFullscreenAndResume()" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:white;border:none;padding:14px 40px;border-radius:30px;font-size:16px;font-weight:bold;cursor:pointer;">&#x1F449; 乖乖回去做题</button>
 </div>
 
-<!-- 阶段0: 入口 -->
 <div class="stage active" id="stage0">
   <div class="invite-box">
     <div class="hearts">&#x1F495;&#x1F497;&#x1F495;</div>
@@ -230,7 +281,6 @@ body {
   </div>
 </div>
 
-<!-- 阶段1: 假扫描 -->
 <div class="stage" id="stage1">
   <div class="scan-container">
     <div class="scan-circle">
@@ -244,7 +294,6 @@ body {
   </div>
 </div>
 
-<!-- 阶段2: 第一题 -->
 <div class="stage" id="stage2">
   <div class="question-card">
     <div class="q-number">&#x1F4CB; 第 1 题 / 共 3 题</div>
@@ -257,7 +306,6 @@ body {
   </div>
 </div>
 
-<!-- 阶段3: 第二题 -->
 <div class="stage" id="stage3">
   <div class="question-card">
     <div class="q-number">&#x1F4CB; 第 2 题 / 共 3 题</div>
@@ -270,7 +318,6 @@ body {
   </div>
 </div>
 
-<!-- 阶段4: 第三题 -->
 <div class="stage" id="stage4">
   <div class="question-card">
     <div class="q-number">&#x1F4CB; 第 3 题 / 共 3 题 (最后一题!)</div>
@@ -283,7 +330,6 @@ body {
   </div>
 </div>
 
-<!-- 阶段5: 结果页 -->
 <div class="stage" id="stage5">
   <div class="result-card">
     <div class="result-title">&#x1F3C6; 2026闺蜜鉴定报告 &#x1F3C6;</div>
@@ -318,12 +364,65 @@ body {
 </div>
 
 <script>
+// 注册 Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
 let dodgeCount = 0;
 let fakeCloseCount = 0;
 let currentStage = 0;
 let danmuTimer = null;
 let testStarted = false;
 let testFinished = false;
+
+// ========== 检测是否独立模式(从主屏幕打开) ==========
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.navigator.standalone === true;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+// 页面加载时检查
+window.addEventListener('DOMContentLoaded', function() {
+  if (!isStandalone()) {
+    // 在浏览器中打开，显示引导页
+    showGuide();
+  }
+});
+
+function showGuide() {
+  const guide = document.getElementById('guideScreen');
+  const steps = document.getElementById('guideSteps');
+  const arrow = document.getElementById('guideArrow');
+  guide.classList.add('active');
+
+  if (isIOS()) {
+    steps.innerHTML = `
+      <b>iPhone/iPad 操作步骤:</b><br><br>
+      1&#xFE0F;&#x20E3; 点击底部的 <b>分享按钮</b> &#x2B06;&#xFE0F; (方框+箭头图标)<br>
+      2&#xFE0F;&#x20E3; 向上滑动找到 <b>「添加到主屏幕」</b><br>
+      3&#xFE0F;&#x20E3; 点击右上角 <b>「添加」</b><br>
+      4&#xFE0F;&#x20E3; 回到桌面，点击 <b>&#x1F495;闺蜜测试</b> 图标打开
+    `;
+    arrow.classList.add('ios');
+    arrow.textContent = '\u2B07\uFE0F 点底部分享按钮';
+  } else {
+    steps.innerHTML = `
+      <b>安卓手机操作步骤:</b><br><br>
+      1&#xFE0F;&#x20E3; 点击浏览器右上角 <b>&#x22EE; 菜单</b><br>
+      2&#xFE0F;&#x20E3; 选择 <b>「添加到主屏幕」</b> 或 <b>「安装应用」</b><br>
+      3&#xFE0F;&#x20E3; 点击 <b>「添加」/「安装」</b> 确认<br>
+      4&#xFE0F;&#x20E3; 回到桌面，点击 <b>&#x1F495;闺蜜测试</b> 图标打开
+    `;
+    arrow.classList.add('android');
+    arrow.textContent = '\u2B06\uFE0F 点右上角菜单';
+  }
+}
 
 const danmuTexts = [
   '博士哥: 这人抽象浓度爆表了',
@@ -391,19 +490,16 @@ function goFullscreenAndResume() {
   document.getElementById('fullscreenOverlay').classList.remove('active');
 }
 
-// 监听全屏退出
 document.addEventListener('fullscreenchange', onFullscreenChange);
 document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 function onFullscreenChange() {
   if (!isFullscreen() && testStarted && !testFinished) {
-    // 用户退出了全屏，显示拦截遮罩
     document.getElementById('fullscreenOverlay').classList.add('active');
-    // 发弹幕嘲讽
     for (let i = 0; i < 3; i++) setTimeout(() => launchDanmu(), i * 300);
   }
 }
 
-// ========== 返回键/历史记录拦截 ==========
+// ========== 返回键拦截 ==========
 function spamHistory() {
   for (let i = 0; i < 50; i++) {
     history.pushState({ page: i }, '', '');
@@ -412,7 +508,6 @@ function spamHistory() {
 
 window.addEventListener('popstate', function(e) {
   if (testStarted && !testFinished) {
-    // 重新填充历史，阻止后退
     history.pushState({ page: 99 }, '', '');
     launchDanmu();
   }
@@ -420,27 +515,24 @@ window.addEventListener('popstate', function(e) {
 
 // ========== 页面切换检测 ==========
 document.addEventListener('visibilitychange', function() {
-  if (document.hidden && testStarted && !testFinished) {
-    // 用户切走了，等回来时重新进全屏
-    // visibilitychange 无法阻止，但回来时会看到遮罩
-  }
-  if (!document.hidden && testStarted && !testFinished && !isFullscreen()) {
-    document.getElementById('fullscreenOverlay').classList.add('active');
+  if (!document.hidden && testStarted && !testFinished) {
+    // 用户切回来了，尝试重新全屏(非standalone时)
+    if (!isStandalone() && !isFullscreen()) {
+      document.getElementById('fullscreenOverlay').classList.add('active');
+    }
   }
 });
 
 function startTest() {
   testStarted = true;
-  // 进入全屏
-  goFullscreen();
-  // 填充历史记录防止返回
+  // 非独立模式也尝试全屏
+  if (!isStandalone()) goFullscreen();
   spamHistory();
   showStage(1);
   runScan();
   startDanmuLoop();
 }
 
-// 持续弹幕循环
 function startDanmuLoop() {
   if (danmuTimer) return;
   danmuTimer = setInterval(() => {
@@ -486,9 +578,7 @@ function isCorrectBtn(btn) {
 
 function dodgeBtn(btn) {
   if (isCorrectBtn(btn)) return;
-
   dodgeCount++;
-
   const btnRect = btn.getBoundingClientRect();
   let newX, newY;
   for (let t = 0; t < 10; t++) {
@@ -499,10 +589,8 @@ function dodgeBtn(btn) {
     if (futureLeft > -50 && futureLeft < window.innerWidth - 50 &&
         futureTop > 50 && futureTop < window.innerHeight - 50) break;
   }
-
   btn.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
   btn.style.transform = `translate(${newX}px, ${newY}px) rotate(${(Math.random()-0.5)*30}deg)`;
-
   const funTexts = [
     '你点不到我~', '略略略~', '就不让你选!', '哈哈追不上吧',
     '我跑~', '嘿嘿嘿', '别做梦了', '想得美!', '再见~', '拜拜~',
@@ -510,17 +598,13 @@ function dodgeBtn(btn) {
     '前端大佬都看笑了', '带你飞? 先选对吧!', '你在逗我?',
   ];
   btn.textContent = funTexts[Math.floor(Math.random() * funTexts.length)];
-
   document.body.classList.add('shaking');
   setTimeout(() => document.body.classList.remove('shaking'), 500);
-
   launchDanmu();
   if (dodgeCount % 2 === 0) launchDanmu();
-
   const stageNum = parseInt(btn.closest('.stage').id.replace('stage', ''));
   const hint = document.getElementById('hint' + stageNum);
   if (hint && dodgeCount >= 3) hint.classList.add('show');
-
   if (dodgeCount > 6) {
     setTimeout(() => {
       btn.style.opacity = '0.3';
@@ -532,16 +616,13 @@ function dodgeBtn(btn) {
 function pickAbstract(nextStage) {
   if (navigator.vibrate) navigator.vibrate(50);
   dodgeCount = 0;
-
   const overlay = document.getElementById('shakeOverlay');
   overlay.style.display = 'block';
   overlay.style.background = 'rgba(255,107,107,0.3)';
   setTimeout(() => overlay.style.display = 'none', 300);
-
   for (let i = 0; i < 5; i++) {
     setTimeout(() => launchDanmu(), i * 200);
   }
-
   if (nextStage <= 4) {
     showStage(nextStage);
   } else {
@@ -552,7 +633,6 @@ function pickAbstract(nextStage) {
 function showResult() {
   showStage(5);
   document.getElementById('fakeClose').style.display = 'none';
-
   for (let i = 0; i < 60; i++) {
     setTimeout(() => createConfetti(), i * 50);
   }
@@ -564,11 +644,9 @@ function showResult() {
 function fakeCloseClick() {
   fakeCloseCount++;
   document.body.classList.add('shaking');
-
   for (let i = 0; i < 3; i++) {
     setTimeout(() => launchDanmu(), i * 200);
   }
-
   const overlay = document.getElementById('shakeOverlay');
   const msgs = [
     '想跑？没门！博士哥说先完成测试！',
@@ -581,11 +659,9 @@ function fakeCloseClick() {
     '提示: 完成测试 = 获得自由 九炸姐加油',
   ];
   const msg = msgs[Math.min(fakeCloseCount - 1, msgs.length - 1)];
-
   overlay.style.display = 'block';
   overlay.style.background = 'rgba(0,0,0,0.7)';
   overlay.innerHTML = '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;text-align:center;font-size:16px;padding:20px;"><div style="font-size:40px;margin-bottom:15px;">&#x1F645;</div>' + msg + '</div>';
-
   setTimeout(() => {
     document.body.classList.remove('shaking');
     overlay.style.display = 'none';
@@ -595,9 +671,7 @@ function fakeCloseClick() {
 
 function realClose() {
   if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-
   if (danmuTimer) { clearInterval(danmuTimer); danmuTimer = null; }
-
   const overlay = document.getElementById('shakeOverlay');
   overlay.style.display = 'block';
   overlay.style.background = 'rgba(0,0,0,0.85)';
@@ -610,7 +684,6 @@ function realClose() {
       <div style="font-size:12px;color:#888;">页面将在 <span id="countdown">3</span> 秒后关闭...</div>
     </div>
   `;
-
   let count = 3;
   const timer = setInterval(() => {
     count--;
@@ -632,14 +705,10 @@ function realClose() {
 
 function actuallyClose() {
   testFinished = true;
-
-  // 退出全屏
   if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
   else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-
   document.getElementById('shakeOverlay').style.display = 'none';
   document.getElementById('fullscreenOverlay').classList.remove('active');
-
   document.body.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f0f0;text-align:center;padding:20px;">
       <div>
@@ -670,7 +739,6 @@ function launchDanmu() {
   ];
   d.style.color = colors[Math.floor(Math.random() * colors.length)];
   document.body.appendChild(d);
-
   const duration = 3000 + Math.random() * 3000;
   d.style.transition = `right ${duration}ms linear`;
   requestAnimationFrame(() => {
