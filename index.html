@@ -152,6 +152,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* 全屏退出拦截遮罩 */
+#fullscreenOverlay {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.95); z-index: 9999;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; color: white;
+}
+#fullscreenOverlay.active { display: flex; }
+
 @keyframes floatIn {
   from { opacity: 0; transform: translateY(30px) scale(0.9); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -196,6 +205,14 @@ body {
 
 <div class="fake-close" id="fakeClose" onclick="fakeCloseClick()">&#x2715;</div>
 <div class="shake-overlay" id="shakeOverlay"></div>
+
+<!-- 全屏退出拦截 -->
+<div id="fullscreenOverlay">
+  <div style="font-size:60px;margin-bottom:20px;">&#x1F6AB;</div>
+  <div style="font-size:20px;font-weight:bold;margin-bottom:10px;">测试还没做完呢!</div>
+  <div style="font-size:14px;color:#ccc;margin-bottom:25px;">九炸姐 你想跑？<br>完成测试才能离开哦~</div>
+  <button onclick="goFullscreenAndResume()" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:white;border:none;padding:14px 40px;border-radius:30px;font-size:16px;font-weight:bold;cursor:pointer;">&#x1F449; 乖乖回去做题</button>
+</div>
 
 <!-- 阶段0: 入口 -->
 <div class="stage active" id="stage0">
@@ -305,6 +322,8 @@ let dodgeCount = 0;
 let fakeCloseCount = 0;
 let currentStage = 0;
 let danmuTimer = null;
+let testStarted = false;
+let testFinished = false;
 
 const danmuTexts = [
   '博士哥: 这人抽象浓度爆表了',
@@ -355,10 +374,69 @@ function showStage(n) {
   currentStage = n;
 }
 
+// ========== 全屏控制 ==========
+function goFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else if (el.msRequestFullscreen) el.msRequestFullscreen();
+}
+
+function isFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+}
+
+function goFullscreenAndResume() {
+  goFullscreen();
+  document.getElementById('fullscreenOverlay').classList.remove('active');
+}
+
+// 监听全屏退出
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+function onFullscreenChange() {
+  if (!isFullscreen() && testStarted && !testFinished) {
+    // 用户退出了全屏，显示拦截遮罩
+    document.getElementById('fullscreenOverlay').classList.add('active');
+    // 发弹幕嘲讽
+    for (let i = 0; i < 3; i++) setTimeout(() => launchDanmu(), i * 300);
+  }
+}
+
+// ========== 返回键/历史记录拦截 ==========
+function spamHistory() {
+  for (let i = 0; i < 50; i++) {
+    history.pushState({ page: i }, '', '');
+  }
+}
+
+window.addEventListener('popstate', function(e) {
+  if (testStarted && !testFinished) {
+    // 重新填充历史，阻止后退
+    history.pushState({ page: 99 }, '', '');
+    launchDanmu();
+  }
+});
+
+// ========== 页面切换检测 ==========
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && testStarted && !testFinished) {
+    // 用户切走了，等回来时重新进全屏
+    // visibilitychange 无法阻止，但回来时会看到遮罩
+  }
+  if (!document.hidden && testStarted && !testFinished && !isFullscreen()) {
+    document.getElementById('fullscreenOverlay').classList.add('active');
+  }
+});
+
 function startTest() {
+  testStarted = true;
+  // 进入全屏
+  goFullscreen();
+  // 填充历史记录防止返回
+  spamHistory();
   showStage(1);
   runScan();
-  // 扫描阶段就开始弹幕
   startDanmuLoop();
 }
 
@@ -367,11 +445,9 @@ function startDanmuLoop() {
   if (danmuTimer) return;
   danmuTimer = setInterval(() => {
     launchDanmu();
-    // 随机多发一条
     if (Math.random() > 0.4) {
       setTimeout(() => launchDanmu(), 200 + Math.random() * 500);
     }
-    // 偶尔连发三条
     if (Math.random() > 0.7) {
       setTimeout(() => launchDanmu(), 400 + Math.random() * 300);
     }
@@ -404,13 +480,11 @@ function runScan() {
   }, 700);
 }
 
-// 判断是不是该跑路的按钮
 function isCorrectBtn(btn) {
   return btn.id === 'opt1d' || btn.id === 'opt2c' || btn.id === 'opt3b';
 }
 
 function dodgeBtn(btn) {
-  // 正确选项不跑路
   if (isCorrectBtn(btn)) return;
 
   dodgeCount++;
@@ -440,11 +514,9 @@ function dodgeBtn(btn) {
   document.body.classList.add('shaking');
   setTimeout(() => document.body.classList.remove('shaking'), 500);
 
-  // 每次点错都发弹幕
   launchDanmu();
   if (dodgeCount % 2 === 0) launchDanmu();
 
-  // 显示提示
   const stageNum = parseInt(btn.closest('.stage').id.replace('stage', ''));
   const hint = document.getElementById('hint' + stageNum);
   if (hint && dodgeCount >= 3) hint.classList.add('show');
@@ -466,7 +538,6 @@ function pickAbstract(nextStage) {
   overlay.style.background = 'rgba(255,107,107,0.3)';
   setTimeout(() => overlay.style.display = 'none', 300);
 
-  // 选对了也发一波弹幕嘲讽
   for (let i = 0; i < 5; i++) {
     setTimeout(() => launchDanmu(), i * 200);
   }
@@ -485,7 +556,6 @@ function showResult() {
   for (let i = 0; i < 60; i++) {
     setTimeout(() => createConfetti(), i * 50);
   }
-  // 结果页弹幕爆发
   for (let i = 0; i < 20; i++) {
     setTimeout(() => launchDanmu(), i * 300);
   }
@@ -493,14 +563,13 @@ function showResult() {
 
 function fakeCloseClick() {
   fakeCloseCount++;
-  const overlay = document.getElementById('shakeOverlay');
   document.body.classList.add('shaking');
 
-  // 点假关闭也刷弹幕
   for (let i = 0; i < 3; i++) {
     setTimeout(() => launchDanmu(), i * 200);
   }
 
+  const overlay = document.getElementById('shakeOverlay');
   const msgs = [
     '想跑？没门！博士哥说先完成测试！',
     '关不掉的哦~ 前端大佬写的代码 质量杠杠的',
@@ -527,7 +596,6 @@ function fakeCloseClick() {
 function realClose() {
   if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-  // 停掉弹幕循环
   if (danmuTimer) { clearInterval(danmuTimer); danmuTimer = null; }
 
   const overlay = document.getElementById('shakeOverlay');
@@ -563,7 +631,15 @@ function realClose() {
 }
 
 function actuallyClose() {
+  testFinished = true;
+
+  // 退出全屏
+  if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+
   document.getElementById('shakeOverlay').style.display = 'none';
+  document.getElementById('fullscreenOverlay').classList.remove('active');
+
   document.body.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f0f0;text-align:center;padding:20px;">
       <div>
@@ -617,7 +693,7 @@ function createConfetti() {
 }
 
 window.onbeforeunload = function(e) {
-  if (currentStage > 0 && currentStage < 5) {
+  if (testStarted && !testFinished) {
     e.preventDefault();
     e.returnValue = '九炸姐你要跑？测试还没做完呢！';
     return '九炸姐你要跑？测试还没做完呢！';
@@ -628,4 +704,3 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 </script>
 </body>
 </html>
-
